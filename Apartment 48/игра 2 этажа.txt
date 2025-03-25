@@ -1,0 +1,363 @@
+const canvas = document.querySelector('canvas')
+const c = canvas.getContext('2d')
+
+
+//ширина поля игры
+canvas.width = 800
+canvas.height = 800
+
+//2:14 граница
+const barrierMap = []
+for (let i = 0; i < st1Barrier.length; i += 8) {
+    barrierMap.push(st1Barrier.slice(i, 8 + i))
+}
+
+const boundaries = []
+const offset = { //расположение персонажа
+    x: 100,
+    y: 80
+}
+
+barrierMap.forEach((row, i) => {
+    row.forEach((symbol, j) => {
+        if (symbol === 2278)
+            boundaries.push(
+                new Boundary({
+                    position: {
+                        x: j * Boundary.width + offset.x,
+                        y: i * Boundary.height + offset.y
+                    }
+                })
+            )
+    })
+})
+
+//изображение карты
+const image = new Image()
+image.src ="./Img/1st.png"
+
+//изображение передних объектов карты
+
+ // изображение персонажа вниз
+const playerDownImage = new Image()
+playerDownImage.src = './Img/playerDown.png'
+
+ // изображение персонажа вверх
+const playerUpImage = new Image()
+playerUpImage.src = './Img/playerUp.png'
+
+ // изображение персонажа влево
+const playerLeftImage = new Image()
+playerLeftImage.src = './Img/playerLeft.png'
+
+ // изображение персонажа вправо
+const playerRightImage = new Image()
+playerRightImage.src = './Img/playerRight.png'
+
+// Добавляем в начало кода (после объявления переменных)
+const portal = {
+        x: 490,  // координаты портала на первой карте
+        y: 460,
+        width: 200,
+        height: 50,
+        targetMap: 'map2',
+        targetX: 400,  // координаты появления на второй карте
+        targetY: 360
+}// Можно добавить другие порталы
+
+let currentMap = 'map1';  // Текущая карта
+const mapImages = {
+    map1: image,  // Ваше текущее изображение карты
+    map2: new Image()  // Добавьте вторую карту
+}
+mapImages.map2.src = "./Img/2st.png";  // Путь ко второй карте
+
+// Добавляем обработчик нажатия клавиши E
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'e' || e.key === 'E') {
+        checkPortalCollision();
+    }
+});
+
+// Функция проверки столкновения с порталом
+function checkPortalCollision() {
+    const playerWorldX = player.position.x + background.position.x;
+    const playerWorldY = player.position.y + background.position.y;
+    
+    console.log(`Player: ${playerWorldX},${playerWorldY} | Portal: ${portal.x},${portal.y}`);
+    
+    if (playerWorldX < portal.x + portal.width &&
+        playerWorldX + player.width > portal.x &&
+        playerWorldY < portal.y + portal.height &&
+        playerWorldY + player.height > portal.y) {
+        console.log("Collision with portal!");
+        changeMap(portal.targetMap, portal.targetX, portal.targetY);
+    }
+}
+
+// Функция смены карты
+function changeMap(newMap, newX, newY) {
+    if (currentMap === newMap) return;  // Не переходить на ту же карту
+    
+    currentMap = newMap;
+    player.position.x = newX;
+    player.position.y = newY;
+    
+    // Обновляем фоновое изображение
+    background.image = mapImages[newMap];
+    
+    // Здесь нужно обновить boundaries для новой карты
+    // Вам нужно будет добавить логику загрузки границ для каждой карты
+    console.log(`Переход на карту ${newMap}`);
+}
+
+//размещение персонажа на карте (canvans)
+const player = new Sprite({
+    position: {
+        x: canvas.width / 2 , //2:49
+        y: canvas.height / 2
+    },
+    image: playerDownImage,
+    frames: {
+        max: 4
+    },
+    sprites: { //добовляем изображения персонажа лево, право
+        up: playerUpImage,
+        left: playerLeftImage,
+        right: playerRightImage,
+        down: playerDownImage
+
+    }
+})
+console.log(player)
+
+const background = new Sprite({
+    position: {
+        x: offset.x,
+        y: offset.y
+    },
+    image: image
+})
+
+
+//перемещение персонажа
+const keys = {
+    w: {
+        prassed: false
+    },
+    a: {
+        prassed: false
+    },
+    s: {
+        prassed: false
+    },
+    d: {
+        prassed: false
+    }
+}
+
+
+//позиционирование границы
+
+function rectangularBarrier ({rectangle1, rectangle2}) {
+    return (
+        rectangle1.position.x + player.width >= rectangle2.position.x && // отображение созданых границ для барьера
+        rectangle1.position.x <= rectangle2.position.x + rectangle2.width && 
+        rectangle1.position.y <= rectangle2.position.y + rectangle2.height &&
+        rectangle1.position.y + player.height >= rectangle2.position.y)
+}
+ 
+function drawPortal() {
+    // Рассчитываем экранные координаты с учетом смещения камеры
+    const screenX = portal.x - background.position.x;
+    const screenY = portal.y - background.position.y;
+    
+    // Всегда рисуем портал (без проверки видимости)
+    c.fillStyle = portal.color;
+    c.fillRect(screenX, screenY, portal.width, portal.height);
+    
+    // Текст портала
+    c.fillStyle = 'black';
+    c.font = 'bold 20px Arial';
+    c.fillText('E', screenX + portal.width/2 - 5, screenY + portal.height/2 + 5);
+}
+
+const movables = [background, ...boundaries]
+function animate() {
+    window.requestAnimationFrame(animate)
+    background.draw()
+
+    // Отрисовываем порталы (только на текущей карте)
+    boundaries.forEach(boundary => {
+        boundary.draw() //отображение границы
+    })
+    if (currentMap === 'map1') {
+        drawPortal();
+    }
+    
+    // Отрисовка игрока
+    player.draw();
+    
+    // Отладочная информация
+    c.fillStyle = 'black';
+    c.font = '14px Arial';
+    c.fillText(`Portal: ${portal.x},${portal.y} | Camera: ${background.position.x},${background.position.y}`, 20, 30)
+
+    let moving = true
+    player.moving = false
+
+    if (keys.w.prassed && lastKey === 'w') {
+        player.moving = true
+        player.image = player.sprites.up
+        for (let i = 0; i <  boundaries.length; i++) { //код для столкновения персонажа с границей
+            const boundary = boundaries[i]
+            if (
+                rectangularBarrier ({
+                    rectangle1: player,
+                    rectangle2: {
+                        ...boundary, 
+                        position: {
+                            x: boundary.position.x,
+                            y: boundary.position.y + 3
+                        }
+                    }
+                })
+            ) {
+                console.log('collading')
+            moving = false
+                break
+            }
+        }
+        if(moving)
+            movables.forEach(movable => {// movables отрожает что если персонаж перемещается то граница остается
+                movable.position.y += 3
+            })
+    }
+    else if (keys.a.prassed && lastKey === 'a') {
+        player.moving = true
+        player.image = player.sprites.left
+        for (let i = 0; i <  boundaries.length; i++) {
+            const boundary = boundaries[i]
+            if (
+                rectangularBarrier ({
+                    rectangle1: player,
+                    rectangle2: {
+                        ...boundary, 
+                        position: {
+                            x: boundary.position.x + 3,
+                            y: boundary.position.y
+                        }
+                    }
+                })
+            ) {
+                console.log('collading')
+            moving = false
+                break
+            }
+        }
+        if(moving)
+        movables.forEach(movable => {
+            movable.position.x += 3
+        })
+    }
+    else if (keys.s.prassed && lastKey === 's') {
+        player.moving = true
+        player.image = player.sprites.down
+        for (let i = 0; i <  boundaries.length; i++) {
+            const boundary = boundaries[i]
+            if (
+                rectangularBarrier ({
+                    rectangle1: player,
+                    rectangle2: {
+                        ...boundary, 
+                        position: {
+                            x: boundary.position.x,
+                            y: boundary.position.y - 3
+                        }
+                    }
+                })
+            ) {
+                console.log('collading')
+            moving = false
+                break
+            }
+        }
+        if(moving)
+        movables.forEach(movable => {
+            movable.position.y -= 3
+        })
+    }
+    else if (keys.d.prassed && lastKey === 'd') {
+        player.moving = true
+        player.image = player.sprites.right
+        for (let i = 0; i <  boundaries.length; i++) {
+            const boundary = boundaries[i]
+            if (
+                rectangularBarrier ({
+                    rectangle1: player,
+                    rectangle2: {
+                        ...boundary, 
+                        position: {
+                            x: boundary.position.x - 3,
+                            y: boundary.position.y
+                        }
+                    }
+                })
+            ) {
+                console.log('collading')
+            moving = false
+                break
+            }
+        }
+        if(moving)
+        movables.forEach(movable => {
+            movable.position.x -= 3
+        })
+    }
+}
+animate()
+
+let lastKey = ''
+
+//перемещеие персонажа
+window.addEventListener('keydown', (e) => {
+    console.log(e.key)
+    switch (e.key){
+        case 'w':
+            keys.w.prassed = true
+            lastKey = 'w'
+            break
+        case 'a':
+            keys.a.prassed = true
+            lastKey = 'a'
+            break
+        case 's':
+            keys.s.prassed = true
+            lastKey = 's'
+            break
+        case 'd':
+            keys.d.prassed = true
+            lastKey = 'd'
+            break
+    }
+    console.log(keys)
+})
+
+window.addEventListener('keyup', (e) => {
+    console.log(e.key)
+    switch (e.key){
+        case 'w':
+            keys.w.prassed = false
+            break
+        case 'a':
+            keys.a.prassed = false
+            break
+        case 's':
+            keys.s.prassed = false
+            break
+        case 'd':
+            keys.d.prassed = false
+            break
+    }
+    console.log(keys)
+})
